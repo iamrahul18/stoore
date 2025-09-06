@@ -3,15 +3,24 @@ import { fetchProducts, fetchProductById, addProduct, createOrder } from './api'
 import { ProductList } from './components/ProductList';
 import { ProductDetail } from './components/ProductDetail';
 import { OrderForm } from './components/OrderForm';
+import { AddProductForm } from './components/AddProductForm';
+import { Header } from './components/Header';
+import { ShoppingBag, Package, Plus } from 'lucide-react';
+import './App.css';
 
 function App() {
     const [products, setProducts] = useState([]);
     const [newProduct, setNewProduct] = useState({name: "", price: "", stock_quantity: "", is_available: true});
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [productDetail, setProductDetail] = useState(null);
+    const [activeTab, setActiveTab] = useState('products');
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchProducts().then(setProducts);
+        fetchProducts().then(data => {
+            setProducts(data);
+            setLoading(false);
+        });
     }, []);
 
     async function handleSelect(id) {
@@ -20,43 +29,81 @@ function App() {
         setProductDetail(res[1] ? res[1] : res);
     }
 
-    async function handleAddProduct(e) {
-        e.preventDefault();
-        await addProduct({
-            name: newProduct.name,
-            price: Number(newProduct.price),
-            stock_quantity: Number(newProduct.stock_quantity),
-            is_available: Boolean(newProduct.is_available)
-        });
+    async function handleAddProduct(productData) {
+        await addProduct(productData);
         setNewProduct({name: "", price: "", stock_quantity: "", is_available: true});
-        fetchProducts().then(setProducts);
+        const updatedProducts = await fetchProducts();
+        setProducts(updatedProducts);
     }
 
     async function handleCreateOrder(orderData) {
         const resp = await createOrder(orderData);
-        fetchProducts().then(setProducts);
+        const updatedProducts = await fetchProducts();
+        setProducts(updatedProducts);
         return resp;
     }
 
     return (
-        <div style={{padding: "2rem"}}>
-            <h1>Store Management Demo</h1>
-            <ProductList products={products} onSelect={handleSelect} />
+        <div className="app">
+            <Header />
+            
+            <div className="container">
+                <div className="tab-navigation">
+                    <button 
+                        className={`tab-button ${activeTab === 'products' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('products')}
+                    >
+                        <Package size={20} />
+                        Products
+                    </button>
+                    <button 
+                        className={`tab-button ${activeTab === 'add-product' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('add-product')}
+                    >
+                        <Plus size={20} />
+                        Add Product
+                    </button>
+                    <button 
+                        className={`tab-button ${activeTab === 'orders' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('orders')}
+                    >
+                        <ShoppingBag size={20} />
+                        Orders
+                    </button>
+                </div>
 
-            <form onSubmit={handleAddProduct} style={{marginBottom: "2rem"}}>
-                <h2>Add Product</h2>
-                <input placeholder="Name" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} required />
-                <input placeholder="Price" type="number" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} required />
-                <input placeholder="Stock" type="number" value={newProduct.stock_quantity} onChange={e => setNewProduct({...newProduct, stock_quantity: e.target.value})} required />
-                <label>
-                    Available:
-                    <input type="checkbox" checked={newProduct.is_available} onChange={e => setNewProduct({...newProduct, is_available: e.target.checked})} />
-                </label>
-                <button type="submit">Add</button>
-            </form>
+                <div className="content">
+                    {activeTab === 'products' && (
+                        <div className="products-section">
+                            <ProductList 
+                                products={products} 
+                                onSelect={handleSelect} 
+                                loading={loading}
+                            />
+                            {productDetail && (
+                                <div className="product-details-section">
+                                    <ProductDetail product={productDetail} />
+                                    <OrderForm 
+                                        productId={selectedProduct} 
+                                        onComplete={handleCreateOrder} 
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-            <ProductDetail product={productDetail} />
-            <OrderForm productId={selectedProduct} onComplete={handleCreateOrder} />
+                    {activeTab === 'add-product' && (
+                        <AddProductForm onSubmit={handleAddProduct} />
+                    )}
+
+                    {activeTab === 'orders' && (
+                        <div className="orders-section">
+                            <h2>Order Management</h2>
+                            <p className="coming-soon">Order history and management features coming soon!</p>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
